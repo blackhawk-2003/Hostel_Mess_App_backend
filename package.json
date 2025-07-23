@@ -1,9 +1,10 @@
 {
   "name": "cu-mess-server",
   "version": "1.0.0",
-  "main": "dist/server.js",
+  "main": "src/server.ts",
   "scripts": {
     "start": "node dist/server.js",
+    "prestart": "npm run build",
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
     "build": "tsc"
   },
