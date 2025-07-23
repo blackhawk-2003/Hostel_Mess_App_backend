@@ -1,53 +1,17 @@
 import { Router, Request, Response } from "express";
-import Menu, { IDayMenu, IMenu } from "../models/Menu";
+import Menu, { IMenu } from "../models/Menu";
 
 const router = Router();
-
-// Get the current week's menu
-router.get("/", async (_req: Request, res: Response) => {
-  try {
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(today.getDate() - today.getDay());
-    const menu = await Menu.findOne({ weekStart: { $lte: weekStart } }).sort({
-      weekStart: -1,
-    });
-    if (!menu) return res.status(404).json({ message: "Menu not found" });
-    res.json(menu);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-});
-
-// Create a new weekly menu
-router.post("/", async (req: Request, res: Response) => {
-  try {
-    const { weekStart, days } = req.body;
-    if (!weekStart || !days || days.length !== 7) {
-      return res.status(400).json({ message: "Invalid menu data" });
-    }
-    const menu = new Menu({ weekStart, days });
-    await menu.save();
-    res.status(201).json(menu);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-});
 
 // Get today's menu
 router.get("/today", async (_req: Request, res: Response) => {
   try {
     const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(today.getDate() - today.getDay());
-    const menu = await Menu.findOne({ weekStart: { $lte: weekStart } }).sort({
-      weekStart: -1,
-    });
-    if (!menu) return res.status(404).json({ message: "Menu not found" });
-    const dayIndex = today.getDay();
-    res.json(menu.days[dayIndex]);
+    const todayDate = today.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+    const menu = await Menu.findOne({ date: todayDate });
+    if (!menu)
+      return res.status(404).json({ message: "Menu not found for today" });
+    res.json(menu);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -56,30 +20,42 @@ router.get("/today", async (_req: Request, res: Response) => {
 // Get tomorrow's menu
 router.get("/tomorrow", async (_req: Request, res: Response) => {
   try {
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(today.getDate() - today.getDay());
-    const menu = await Menu.findOne({ weekStart: { $lte: weekStart } }).sort({
-      weekStart: -1,
-    });
-    if (!menu) return res.status(404).json({ message: "Menu not found" });
-    let dayIndex = today.getDay() + 1;
-    if (dayIndex > 6) dayIndex = 0; // wrap to Sunday
-    res.json(menu.days[dayIndex]);
+    const tomorrow = new Date(Date.now() + 86400000);
+    const tomorrowDate = tomorrow.toISOString().slice(0, 10);
+    const menu = await Menu.findOne({ date: tomorrowDate });
+    if (!menu)
+      return res.status(404).json({ message: "Menu not found for tomorrow" });
+    res.json(menu);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
 });
-// Get menu for a specific week (by weekStart date)
+
+// Create or update a menu for a specific day
+router.post("/", async (req: Request, res: Response) => {
+  try {
+    const { date, day, breakfast, lunch, snacks, dinner } = req.body;
+    if (!date || !day || !breakfast || !lunch || !snacks || !dinner) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    const menu = await Menu.findOneAndUpdate(
+      { date },
+      { day, breakfast, lunch, snacks, dinner },
+      { new: true, upsert: true }
+    );
+    res.status(201).json(menu);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Get menu for a specific date
 router.get("/:date", async (req: Request, res: Response) => {
   try {
-    const weekStart = new Date(req.params.date);
-    if (isNaN(weekStart.getTime())) {
-      return res.status(400).json({ error: "Invalid date format" });
-    }
-    const menu = await Menu.findOne({ weekStart });
-    if (!menu) return res.status(404).json({ message: "Menu not found" });
+    const { date } = req.params;
+    const menu = await Menu.findOne({ date });
+    if (!menu)
+      return res.status(404).json({ message: "Menu not found for this date" });
     res.json(menu);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
