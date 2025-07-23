@@ -31,10 +31,33 @@ router.get("/tomorrow", async (_req: Request, res: Response) => {
   }
 });
 
-// Create or update a menu for a specific day
+// Create or update menu(s) for specific day(s) (bulk or single)
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { date, day, breakfast, lunch, snacks, dinner } = req.body;
+    const data = req.body;
+
+    // If data is an array, handle bulk insert/update
+    if (Array.isArray(data)) {
+      const results = [];
+      for (const item of data) {
+        const { date, day, breakfast, lunch, snacks, dinner } = item;
+        if (!date || !day || !breakfast || !lunch || !snacks || !dinner) {
+          return res
+            .status(400)
+            .json({ message: "Missing required fields in one or more items" });
+        }
+        const menu = await Menu.findOneAndUpdate(
+          { date },
+          { day, breakfast, lunch, snacks, dinner },
+          { new: true, upsert: true }
+        );
+        results.push(menu);
+      }
+      return res.status(201).json(results);
+    }
+
+    // Otherwise, handle single object as before
+    const { date, day, breakfast, lunch, snacks, dinner } = data;
     if (!date || !day || !breakfast || !lunch || !snacks || !dinner) {
       return res.status(400).json({ message: "Missing required fields" });
     }
