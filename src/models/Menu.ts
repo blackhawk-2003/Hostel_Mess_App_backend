@@ -1,31 +1,21 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface IDayMenu {
+export interface IMenu extends Document {
+  date: string; // e.g., '2024-07-23'
+  day: string; // e.g., 'Tuesday'
   breakfast: string;
   lunch: string;
   snacks: string;
   dinner: string;
 }
 
-export interface IMenu extends Document {
-  weekStart: Date;
-  days: IDayMenu[];
-}
-
-const DayMenuSchema = new Schema<IDayMenu>({
+const MenuSchema = new Schema<IMenu>({
+  date: { type: String, required: true, unique: true },
+  day: { type: String, required: true },
   breakfast: { type: String, required: true },
   lunch: { type: String, required: true },
   snacks: { type: String, required: true },
   dinner: { type: String, required: true },
-});
-
-const MenuSchema = new Schema<IMenu>({
-  weekStart: { type: Date, required: true },
-  days: {
-    type: [DayMenuSchema],
-    validate: [(arr: IDayMenu[]) => arr.length === 7, "Menu must have 7 days"],
-    required: true,
-  },
 });
 
 export default mongoose.model<IMenu>("Menu", MenuSchema);
